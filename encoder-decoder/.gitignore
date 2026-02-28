@@ -1,0 +1,14 @@
+# Data files (datasets)
+encoder-decoder/data/
+
+# Python cache
+__pycache__/
+encoder-decoder/__pycache__/
+encoder-decoder/layers/__pycache__/
+
+# VSCode settings (optional)
+.vscode/
+
+# Virtual environments (if any)
+venv/
+.env
