@@ -1,4 +1,28 @@
-Basic architectural Luong (dot) attention model with seq to seq language translation.
+## Basic Seq2Seq Language Translation with Luong (Dot) Attention
 
-To verify the model, create a file with english and french sentences, run seq_to_seq.py on small dataset (as batch and other optimizations are not used, its painfully slow but works fast enough on small datasets). 
-Memorization can be verified on small dataset of let's say 10-15 sentences. For testing Generalization one might have to wait for ages :)
+This project implements a **basic Seq2Seq (Sequence-to-Sequence) neural network** with **Luong (Dot) Attention** for English → French language translation.
+
+---
+
+## Model Overview
+
+- Encoder–Decoder architecture
+- Luong (Dot) Attention mechanism
+- Designed for educational and experimental purposes
+- Implemented without batching or heavy optimizations
+
+> ⚠️ Note: Since batching and advanced optimizations are not used, training can be slow.  
+> However, the model works well for small datasets.
+
+---
+
+## Dataset Preparation
+
+To verify the model:
+
+1. Create a text file containing paired **English–French sentence translations**.
+2. Use a small dataset initially (recommended: **10–15 sentence pairs**).
+3. Run the training script:
+
+```bash
+python seq_to_seq.py
