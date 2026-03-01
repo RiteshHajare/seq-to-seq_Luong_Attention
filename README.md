@@ -22,7 +22,8 @@ To verify the model:
 
 1. Create a text file containing paired **English–French sentence translations**.
 2. Use a small dataset initially (recommended: **10–15 sentence pairs**).
-3. Run the training script:
+3. Memorization can be verified on smamm dataset, For Generalization it might take ages :)
+4. Run the training script:
 
 ```bash
 python seq_to_seq.py
