@@ -14,9 +14,18 @@ def tanh(input, derivative = False):
     return np.tanh(input)
 
 def softmax(input,derivative=False):
+  x = np.asarray(input)
+  if x.ndim == 1:
+    shifted = x - np.max(x)
+    exp = np.exp(shifted)
+    sm = exp / np.sum(exp)
+  else:
+    shifted = x - np.max(x, axis=-1, keepdims=True)
+    exp = np.exp(shifted)
+    sm = exp / np.sum(exp, axis=-1, keepdims=True)
   if derivative:
-    return softmax(input) * (1 - softmax(input))
-  return np.exp(input) / np.sum(np.exp(input))
+    return sm * (1 - sm)
+  return sm
 
 def initWeights(input_size, output_size):
     input_size,output_size = output_size,input_size
@@ -51,6 +60,9 @@ class LSTM:
     self.wfi = initWeights(2*hidden_size,output_dims)
     self.bfi = np.zeros((1,output_dims))
 
+    # General attention weight matrix
+    self.Wa = initWeights(hidden_size, hidden_size)   # [H, H]
+
   def setParams(self,lstm):
      self.lstm=lstm
 
@@ -78,6 +90,7 @@ class LSTM:
     self.dbc = np.zeros_like(self.bc)
     self.dbo = np.zeros_like(self.bo)
     self.dbfi = np.zeros_like(self.bfi)
+    self.dWa = np.zeros_like(self.Wa)
 
     self.attn_weights={}
     self.context ={}
@@ -86,7 +99,8 @@ class LSTM:
   def compute_attention(self, decoder_hidden, encoder_outputs):
     # encoder_outputs: list of encoder hidden states (shape: [seq_len, hidden_size])
     # decoder_hidden: current decoder hidden state (shape: [1, hidden_size])
-    scores = np.dot(encoder_outputs, decoder_hidden.T).squeeze()  # [seq_len]
+    transformed = np.dot(decoder_hidden, self.Wa)  # [seq_len, hidden_size]
+    scores = np.dot(encoder_outputs, transformed.T).squeeze()  # [seq_len]
     attn_weights = softmax(scores)  # [seq_len]
     context = np.sum(encoder_outputs * attn_weights[:, None], axis=0, keepdims=True)  # [1, hidden_size]
     return context, attn_weights
@@ -110,7 +124,7 @@ class LSTM:
     self.long_mem[idx] = self.forget_output[idx]*self.long_mem[idx-1] + self.input_output[idx]*self.candidate_output[idx]
     self.short_mem[idx] = tanh(self.long_mem[idx])*self.output_output[idx]
 
-    encoder_outputs = self.lstm.encoder_outputs
+    encoder_outputs = np.vstack(self.lstm.encoder_outputs)
     context, attn_weights = self.compute_attention(self.short_mem[idx], encoder_outputs)
     self.context[idx] = context  # Store context for use in backward
     self.attn_weights[idx] = attn_weights
@@ -138,7 +152,7 @@ class LSTM:
     dcontext = grad[:, self.hidden_size:]
 
     attn_weights = self.attn_weights[idx]          # [seq_len]
-    encoder_outputs = self.lstm.encoder_outputs    # [seq_len, hidden_size]
+    encoder_outputs = np.vstack(self.lstm.encoder_outputs)    # [seq_len, hidden_size]
 
     # 1. Gradient w.r.t attn_weights from context
     # context = sum_t(attn_weights[t] * encoder_outputs[t])
@@ -150,15 +164,18 @@ class LSTM:
 
     # 3. Gradient to encoder_outputs from the score computation
     # scores = encoder_outputs @ decoder_hidden.T
+    transformed_hidden = np.dot(self.short_mem[idx], self.Wa)
     for t in range(len(attn_weights)):
         self.lstm.dencoder_outputs[t] += (
             attn_weights[t] * dcontext          # path 1: you already had this
-            + d_scores[t] * self.short_mem[idx] # path 2: missing - score affects encoder_out gradient
+            + d_scores[t] * transformed_hidden  # path 2: score path for Luong general
         )
 
     # 4. Gradient to decoder hidden state (short_mem) - also missing
     # scores = encoder_outputs @ decoder_hidden.T, so d_hidden = encoder_outputs.T @ d_scores
-    d_hidden_from_attn = np.dot(d_scores[np.newaxis, :], encoder_outputs)  # [1, hidden_size]
+    dtransformed = np.dot(d_scores[np.newaxis, :], encoder_outputs)  # [1, hidden_size]
+    self.dWa += np.dot(self.short_mem[idx].T, dtransformed)  # [H, H]
+    d_hidden_from_attn = np.dot(dtransformed, self.Wa.T)  # [1, hidden_size]
 
     # Then add this into tobackProp before continuing the rest of backward
     tobackProp += d_hidden_from_attn
@@ -194,13 +211,15 @@ class LSTM:
 
   def optimise(self):
     for param_grad in [self.dforget_output, self.dinput_output, self.dcandidate_output, self.doutput_output, self.dfinal_output,
-                       self.dbf, self.dbi, self.dbc, self.dbo, self.dbfi]:
+                       self.dbf, self.dbi, self.dbc, self.dbo, self.dbfi,self.dWa]:
         np.clip(param_grad, -1, 1, out=param_grad)
     self.wf += self.learning_rate*self.dforget_output
     self.wi += self.learning_rate*self.dinput_output
     self.wc += self.learning_rate*self.dcandidate_output
     self.wo += self.learning_rate*self.doutput_output
     self.wfi += self.learning_rate*self.dfinal_output
+
+    self.Wa += self.learning_rate * self.dWa
 
     self.bf += self.learning_rate*self.dbf
     self.bi += self.learning_rate*self.dbi

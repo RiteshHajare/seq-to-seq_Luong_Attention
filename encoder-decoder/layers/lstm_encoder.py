@@ -14,9 +14,18 @@ def tanh(input, derivative = False):
     return np.tanh(input)
 
 def softmax(input,derivative=False):
+  x = np.asarray(input)
+  if x.ndim == 1:
+    shifted = x - np.max(x)
+    exp = np.exp(shifted)
+    sm = exp / np.sum(exp)
+  else:
+    shifted = x - np.max(x, axis=-1, keepdims=True)
+    exp = np.exp(shifted)
+    sm = exp / np.sum(exp, axis=-1, keepdims=True)
   if derivative:
-    return softmax(input) * (1 - softmax(input))
-  return np.exp(input) / np.sum(np.exp(input))
+    return sm * (1 - sm)
+  return sm
 
 def initWeights(input_size, output_size):
     input_size,output_size = output_size,input_size

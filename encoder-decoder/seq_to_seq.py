@@ -19,7 +19,7 @@ encoder.setParams(decoder)
 # print(emb.embedding_matrix)
 # print("-------------------")
 
-for id in tqdm(range(5000)):
+for id in tqdm(range(1000)):
     for i in range(len(pairs)):
         input_seq = [input_lang.word2index[word] for word in pairs[i][0].split(' ')]
         emb_matrix = emb_enc.forward(input_seq)
@@ -42,6 +42,8 @@ for id in tqdm(range(5000)):
             encoder.backward(idx)
 
         emb_enc.backward(input_seq,encoder.dinput)
+        emb_enc.optimise()
+        emb_dec.optimise()
         encoder.optimise()
         decoder.optimise()
     
