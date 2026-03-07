@@ -116,7 +116,10 @@ test_sentences = [
 "here s your pudding",
 "hey you re not tom",
 "his bicycle is blue",
-"his dog barks at me"
+"she came to see me",
+"she cannot stop us",
+"she could not swim",
+"she cried bitterly"
 ]
 
 for sent in test_sentences:

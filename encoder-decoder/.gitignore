@@ -12,3 +12,5 @@ encoder-decoder/layers/__pycache__/
 # Virtual environments (if any)
 venv/
 .env
+*.txt
+

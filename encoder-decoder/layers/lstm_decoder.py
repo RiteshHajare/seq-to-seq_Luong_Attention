@@ -137,9 +137,34 @@ class LSTM:
     tobackProp = grad[:, :self.hidden_size]
     dcontext = grad[:, self.hidden_size:]
 
-    attn_weights = self.attn_weights[idx]  # shape [seq_len]
+    attn_weights = self.attn_weights[idx]          # [seq_len]
+    encoder_outputs = self.lstm.encoder_outputs    # [seq_len, hidden_size]
+
+    # 1. Gradient w.r.t attn_weights from context
+    # context = sum_t(attn_weights[t] * encoder_outputs[t])
+    d_attn_weights = np.dot(encoder_outputs, dcontext.T).squeeze()  # [seq_len]
+
+    # 2. Backprop through softmax
+    # d_scores = attn_weights * (d_attn_weights - sum(d_attn_weights * attn_weights))
+    d_scores = attn_weights * (d_attn_weights - np.sum(d_attn_weights * attn_weights))  # [seq_len]
+
+    # 3. Gradient to encoder_outputs from the score computation
+    # scores = encoder_outputs @ decoder_hidden.T
     for t in range(len(attn_weights)):
-        self.lstm.dencoder_outputs[t] += attn_weights[t] * dcontext
+        self.lstm.dencoder_outputs[t] += (
+            attn_weights[t] * dcontext          # path 1: you already had this
+            + d_scores[t] * self.short_mem[idx] # path 2: missing - score affects encoder_out gradient
+        )
+
+    # 4. Gradient to decoder hidden state (short_mem) - also missing
+    # scores = encoder_outputs @ decoder_hidden.T, so d_hidden = encoder_outputs.T @ d_scores
+    d_hidden_from_attn = np.dot(d_scores[np.newaxis, :], encoder_outputs)  # [1, hidden_size]
+
+    # Then add this into tobackProp before continuing the rest of backward
+    tobackProp += d_hidden_from_attn
+    
+    # for t in range(len(attn_weights)):
+    #     self.lstm.dencoder_outputs[t] += attn_weights[t] * dcontext
 
     dh_temp = tobackProp + dshortnext
 
