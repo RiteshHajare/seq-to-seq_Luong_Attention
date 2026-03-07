@@ -10,6 +10,7 @@ This project implements a **basic Seq2Seq (Sequence-to-Sequence) neural network*
 - Luong (Dot) Attention mechanism
 - Designed for educational and experimental purposes
 - Implemented without batching or heavy optimizations
+- Other branch for luong attention General Scoring
 
 > ⚠️ Note: Since batching and advanced optimizations are not used, training can be slow.  
 > However, the model works well for small datasets.
